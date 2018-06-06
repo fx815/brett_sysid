@@ -24,8 +24,8 @@ attitude_cmd2.rpy = quat2rpy([attitude_cmd2.q(4,:)', attitude_cmd2.q(1:3,:)']');
 imu_data1.rpy = quat2rpy([imu_data1.q(4,:)', imu_data1.q(1:3,:)']');
 imu_data2.rpy = quat2rpy([imu_data2.q(4,:)', imu_data2.q(1:3,:)']');
 
-attitude_cmd1.rpy = quat2rpy([attitude_cmd1.q(4,:)', attitude_cmd1.q(1:3,:)']');
-attitude_cmd2.rpy = quat2rpy([attitude_cmd2.q(4,:)', attitude_cmd2.q(1:3,:)']');
+% attitude_cmd1.rpy = quat2rpy([attitude_cmd1.q(4,:)', attitude_cmd1.q(1:3,:)']');
+% attitude_cmd2.rpy = quat2rpy([attitude_cmd2.q(4,:)', attitude_cmd2.q(1:3,:)']');
 
 t_start1 = imu_data1.t(1);
 t_start2 = imu_data2.t(1);
