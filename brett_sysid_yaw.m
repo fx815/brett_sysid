@@ -17,15 +17,11 @@ imu_data2 = readImu(bag2, '/mavros/imu/data');
 
 attitude_cmd1 = readAttitudeTarget(bag1, '/mavros/setpoint_raw/target_attitude');
 attitude_cmd2 = readAttitudeTarget(bag2, '/mavros/setpoint_raw/target_attitude');
-
 attitude_cmd1.rpy = quat2rpy([attitude_cmd1.q(4,:)', attitude_cmd1.q(1:3,:)']');
 attitude_cmd2.rpy = quat2rpy([attitude_cmd2.q(4,:)', attitude_cmd2.q(1:3,:)']');
 
 imu_data1.rpy = quat2rpy([imu_data1.q(4,:)', imu_data1.q(1:3,:)']');
 imu_data2.rpy = quat2rpy([imu_data2.q(4,:)', imu_data2.q(1:3,:)']');
-
-% attitude_cmd1.rpy = quat2rpy([attitude_cmd1.q(4,:)', attitude_cmd1.q(1:3,:)']');
-% attitude_cmd2.rpy = quat2rpy([attitude_cmd2.q(4,:)', attitude_cmd2.q(1:3,:)']');
 
 t_start1 = imu_data1.t(1);
 t_start2 = imu_data2.t(1);
@@ -48,30 +44,31 @@ attitude_cmd1.t = imu_data1.t;
 attitude_cmd2.t = imu_data2.t;
 
 %get rid of first and last x seconds (to remove ground and transient effects)
-st = 15;
-clip = 20;
+t0 = 10;
+t1 = 10;
 
-imu_data1.t = imu_data1.t(imu_data1.t > st & imu_data1.t < imu_data1.t(end)-clip);
-imu_data2.t = imu_data2.t(imu_data2.t > st & imu_data2.t < imu_data2.t(end)-clip);
+imu_data1.t_clip = imu_data1.t(imu_data1.t > t0 & imu_data1.t < imu_data1.t(end)-t1);
+imu_data2.t_clip = imu_data2.t(imu_data2.t > t0 & imu_data2.t < imu_data2.t(end)-t1);
 
-imu_data1.rpy = imu_data1.rpy(:, imu_data1.t > st & imu_data1.t < imu_data1.t(end)-clip);
-imu_data2.rpy = imu_data2.rpy(:, imu_data2.t > st & imu_data2.t < imu_data2.t(end)-clip);
+imu_data1.rpy = imu_data1.rpy(:, imu_data1.t > t0 & imu_data1.t < imu_data1.t(end) - t1);
+imu_data2.rpy = imu_data2.rpy(:, imu_data2.t > t0 & imu_data2.t < imu_data2.t(end) - t1);
 
-attitude_cmd1.t = attitude_cmd1.t(attitude_cmd1.t > st & attitude_cmd1.t < attitude_cmd1.t(end)-clip);
-attitude_cmd2.t = attitude_cmd2.t(attitude_cmd2.t > st & attitude_cmd2.t < attitude_cmd2.t(end)-clip);
+attitude_cmd1.t_clip = attitude_cmd1.t(attitude_cmd1.t > t0 & attitude_cmd1.t < attitude_cmd1.t(end) - t1);
+attitude_cmd2.t_clip = attitude_cmd2.t(attitude_cmd2.t > t0 & attitude_cmd2.t < attitude_cmd2.t(end) - t1);
 
-attitude_cmd1.y_interp = attitude_cmd1.y_interp(:, attitude_cmd1.t > st & attitude_cmd1.t < attitude_cmd1.t(end)-clip);
-attitude_cmd2.y_interp = attitude_cmd2.y_interp(:, attitude_cmd2.t > st & attitude_cmd2.t < attitude_cmd2.t(end)-clip);
+attitude_cmd1.y_interp = attitude_cmd1.y_interp(:, attitude_cmd1.t > t0 & attitude_cmd1.t < attitude_cmd1.t(end) - t1);
+attitude_cmd2.y_interp = attitude_cmd2.y_interp(:, attitude_cmd2.t > t0 & attitude_cmd2.t < attitude_cmd2.t(end) - t1);
 
 
 %% ID of yaw system
 np = 2; %1 for 1st order system, 2 for 2nd order system
 
 %experiment 1
+
 Experiment1.u1 = attitude_cmd1.y_interp;
 Experiment1.y1 = imu_data1.rpy(3,:);
 
-dt1 = mean(diff(imu_data1.t));
+dt1 = mean(diff(imu_data1.t_clip));
 
 yaw_data1 = iddata(Experiment1.y1',Experiment1.u1',dt1, ...
     'ExperimentName', 'SysID_1', 'InputName','yaw_{cmd}', ...
@@ -83,7 +80,7 @@ yaw_data1 = detrend(yaw_data1);
 Experiment2.u1 = attitude_cmd2.y_interp;
 Experiment2.y1 = imu_data2.rpy(3,:);
 
-dt2 = mean(diff(imu_data2.t));
+dt2 = mean(diff(imu_data2.t_clip));
 
 yaw_data2 = iddata(Experiment2.y1',Experiment2.u1',dt2,...
     'ExperimentName', 'SysID_2', 'InputName','yaw_{cmd}',...
@@ -160,4 +157,28 @@ title('yawrate RootLucas plot');
 subplot(313);
 step(yaw_estimated_tf); grid;
 title('yawrate step response plot');
+
+%% plot
+
+% *Plot attitude*
+figure();
+title('Experiment 1 and 2 Data');
+subplot(2,1,1);
+plot(imu_data1.t_clip, imu_data1.rpy(3,:)*180/pi, ...
+    attitude_cmd1.t_clip, attitude_cmd1.y_interp*180/pi, ...
+    'g--', 'linewidth', 2);
+
+xlabel('time');
+legend('y','y_{ref}');
+ylabel('yaw [deg]');
+title('yaw from IMU, exp 1');
+
+subplot(2,1,2);
+plot(imu_data2.t_clip, imu_data2.rpy(3,:)*180/pi, ...
+    attitude_cmd2.t_clip, attitude_cmd2.y_interp*180/pi, ...
+    'g--', 'linewidth', 2);
+
+xlabel('time');
+ylabel('yaw [deg]');
+title('yaw from IMU, exp 2');
 
