@@ -30,7 +30,7 @@ imu_data1.t = imu_data1.t - t_start1;
 imu_data2.t = imu_data2.t - t_start2;
 
 attitude_cmd1.t = attitude_cmd1.t - attitude_cmd1.t(1);
-attitude_cmd2.t = attitude_cmd2.t - attitude_cmd2.t(1);
+attitude_cmd2.t = attitude_cmd2.t - attitude_cmd2.t(1); 
 
 %% sysid begins
 attitude_cmd1.y_interp = zeros(length(imu_data1.rpy));
