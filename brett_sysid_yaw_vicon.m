@@ -12,46 +12,42 @@ bag1 = ros.Bag(bag_name1);
 bag2 = ros.Bag(bag_name2);
 
 %% read topics
-imu_data1 = readImu(bag1, '/mavros/imu/data');
-imu_data2 = readImu(bag2, '/mavros/imu/data');
-
 attitude_cmd1 = readAttitudeTarget(bag1, '/mavros/setpoint_raw/target_attitude');
 attitude_cmd2 = readAttitudeTarget(bag2, '/mavros/setpoint_raw/target_attitude');
 attitude_cmd1.rpy = quat2rpy([attitude_cmd1.q(4,:)', attitude_cmd1.q(1:3,:)']');
 attitude_cmd2.rpy = quat2rpy([attitude_cmd2.q(4,:)', attitude_cmd2.q(1:3,:)']');
 
-imu_data1.rpy = quat2rpy([imu_data1.q(4,:)', imu_data1.q(1:3,:)']');
-imu_data2.rpy = quat2rpy([imu_data2.q(4,:)', imu_data2.q(1:3,:)']');
+vicon_odometry1 = readOdometry(bag1, '/brett2/vrpn_client/estimated_odometry');
+vicon_odometry2 = readOdometry(bag2, '/brett2/vrpn_client/estimated_odometry');
+vicon_odometry1.rpy = quat2rpy([vicon_odometry1.q(4,:)', vicon_odometry1.q(1:3,:)']');
+vicon_odometry2.rpy = quat2rpy([vicon_odometry2.q(4,:)', vicon_odometry2.q(1:3,:)']');
 
-t_start1 = imu_data1.t(1);
-t_start2 = imu_data2.t(1);
-
-imu_data1.t = imu_data1.t - t_start1;
-imu_data2.t = imu_data2.t - t_start2;
+vicon_odometry1.t = vicon_odometry1.t - vicon_odometry1.t(1);
+vicon_odometry2.t = vicon_odometry2.t - vicon_odometry2.t(1);
 
 attitude_cmd1.t = attitude_cmd1.t - attitude_cmd1.t(1);
 attitude_cmd2.t = attitude_cmd2.t - attitude_cmd2.t(1); 
 
 %% sysid begins
-attitude_cmd1.y_interp = zeros(length(imu_data1.rpy));
-attitude_cmd2.y_interp = zeros(length(imu_data2.rpy));
+attitude_cmd1.y_interp = zeros(length(vicon_odometry1.rpy));
+attitude_cmd2.y_interp = zeros(length(vicon_odometry2.rpy));
 
 %interp yaw
-attitude_cmd1.y_interp = interp1(attitude_cmd1.t, attitude_cmd1.rpy(3,:), imu_data1.t, 'spline');
-attitude_cmd2.y_interp = interp1(attitude_cmd2.t, attitude_cmd2.rpy(3,:), imu_data2.t, 'spline');
+attitude_cmd1.y_interp = interp1(attitude_cmd1.t, attitude_cmd1.rpy(3,:), vicon_odometry1.t, 'spline');
+attitude_cmd2.y_interp = interp1(attitude_cmd2.t, attitude_cmd2.rpy(3,:), vicon_odometry2.t, 'spline');
 
-attitude_cmd1.t = imu_data1.t;
-attitude_cmd2.t = imu_data2.t;
+attitude_cmd1.t = vicon_odometry1.t;
+attitude_cmd2.t = vicon_odometry2.t;
 
 %get rid of first and last x seconds (to remove ground and transient effects)
 t0 = 10;
-t1 = 10;
+t1 = 0;
 
-imu_data1.t_clip = imu_data1.t(imu_data1.t > t0 & imu_data1.t < imu_data1.t(end)-t1);
-imu_data2.t_clip = imu_data2.t(imu_data2.t > t0 & imu_data2.t < imu_data2.t(end)-t1);
+vicon_odometry1.t_clip = vicon_odometry1.t(vicon_odometry1.t > t0 & vicon_odometry1.t < vicon_odometry1.t(end)-t1);
+vicon_odometry2.t_clip = vicon_odometry2.t(vicon_odometry2.t > t0 & vicon_odometry2.t < vicon_odometry2.t(end)-t1);
 
-imu_data1.rpy = imu_data1.rpy(:, imu_data1.t > t0 & imu_data1.t < imu_data1.t(end) - t1);
-imu_data2.rpy = imu_data2.rpy(:, imu_data2.t > t0 & imu_data2.t < imu_data2.t(end) - t1);
+vicon_odometry1.rpy = vicon_odometry1.rpy(:, vicon_odometry1.t > t0 & vicon_odometry1.t < vicon_odometry1.t(end) - t1);
+vicon_odometry2.rpy = vicon_odometry2.rpy(:, vicon_odometry2.t > t0 & vicon_odometry2.t < vicon_odometry2.t(end) - t1);
 
 attitude_cmd1.t_clip = attitude_cmd1.t(attitude_cmd1.t > t0 & attitude_cmd1.t < attitude_cmd1.t(end) - t1);
 attitude_cmd2.t_clip = attitude_cmd2.t(attitude_cmd2.t > t0 & attitude_cmd2.t < attitude_cmd2.t(end) - t1);
@@ -66,9 +62,9 @@ np = 2; %1 for 1st order system, 2 for 2nd order system
 %experiment 1
 
 Experiment1.u1 = attitude_cmd1.y_interp;
-Experiment1.y1 = imu_data1.rpy(3,:);
+Experiment1.y1 = vicon_odometry1.rpy(3,:);
 
-dt1 = mean(diff(imu_data1.t_clip));
+dt1 = mean(diff(vicon_odometry1.t_clip));
 
 yaw_data1 = iddata(Experiment1.y1',Experiment1.u1',dt1, ...
     'ExperimentName', 'SysID_1', 'InputName','yaw_{cmd}', ...
@@ -78,9 +74,9 @@ yaw_data1 = detrend(yaw_data1);
 
 %experiment 2
 Experiment2.u1 = attitude_cmd2.y_interp;
-Experiment2.y1 = imu_data2.rpy(3,:);
+Experiment2.y1 = vicon_odometry2.rpy(3,:);
 
-dt2 = mean(diff(imu_data2.t_clip));
+dt2 = mean(diff(vicon_odometry2.t_clip));
 
 yaw_data2 = iddata(Experiment2.y1',Experiment2.u1',dt2,...
     'ExperimentName', 'SysID_2', 'InputName','yaw_{cmd}',...
@@ -164,7 +160,7 @@ title('yawrate step response plot');
 figure();
 title('Experiment 1 and 2 Data');
 subplot(2,1,1);
-plot(imu_data1.t_clip, imu_data1.rpy(3,:)*180/pi, ...
+plot(vicon_odometry1.t_clip, vicon_odometry1.rpy(3,:)*180/pi, ...
     attitude_cmd1.t_clip, attitude_cmd1.y_interp*180/pi, ...
     'g--', 'linewidth', 2);
 
@@ -174,7 +170,7 @@ ylabel('yaw [deg]');
 title('yaw from IMU, exp 1');
 
 subplot(2,1,2);
-plot(imu_data2.t_clip, imu_data2.rpy(3,:)*180/pi, ...
+plot(vicon_odometry2.t_clip, vicon_odometry2.rpy(3,:)*180/pi, ...
     attitude_cmd2.t_clip, attitude_cmd2.y_interp*180/pi, ...
     'g--', 'linewidth', 2);
 

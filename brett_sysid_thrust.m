@@ -5,8 +5,8 @@ clc;
 path(path,'../read_bags');
 path(path,'../helper_functions');
 
-bag_name1 = 'thrust1_2018-05-21-15-51-15.bag';
-bag_name2 = 'thrust2_2018-05-21-15-51-56.bag';
+bag_name1 = '2018-07-06-13-30-22.bag';
+bag_name2 = '2018-07-06-13-31-10.bag';
 
 bag1 = ros.Bag(bag_name1);
 bag2 = ros.Bag(bag_name2);
@@ -43,8 +43,8 @@ attitude_cmd1.t = imu_data1.t;
 attitude_cmd2.t = imu_data2.t;
 
 %get rid of first and last x seconds (to remove ground and transient effects)
-st = 5;
-clip = 5;
+st = 0;
+clip = 0;
 
 imu_data1.t = imu_data1.t(imu_data1.t > st & imu_data1.t < imu_data1.t(end)-clip);
 imu_data2.t = imu_data2.t(imu_data2.t > st & imu_data2.t < imu_data2.t(end)-clip);
@@ -60,12 +60,12 @@ thrust_cmd2_interp = thrust_cmd2_interp(attitude_cmd2.t > st & attitude_cmd2.t <
 
 
 %% ID of thrust system
-m = 1.724; %mass [kg]
+m = 1.760; %mass [kg]
 g = 9.81; %[m/s^2]
 
 %thrust from linear acceleration 
-thrust_out1 = m*(g + imu_data1_z_acc);
-thrust_out2 = m*(g + imu_data2_z_acc);
+thrust_out1 = m*imu_data1_z_acc;
+thrust_out2 = m*imu_data2_z_acc;
 
 % figure()
 % scatter(thrust_cmd1_interp,thrust_out1);hold on;
